@@ -1,0 +1,54 @@
+{
+ "folder": "agent-api",
+ "slug": "agent-api",
+ "port": 8105,
+ "title": "Agent API",
+ "one_liner": "A FastAPI chat agent on one provider-agnostic LLM door that can call the sales-forecast service as a tool, with no key in source.",
+ "duration_s": 64.8,
+ "highlight_s": 11.1,
+ "steps": [
+  {
+   "n": 1,
+   "text": "The capstone agent on common/llm.py: three example questions",
+   "ok": true,
+   "t": 2.5
+  },
+  {
+   "n": 2,
+   "text": "Forecast question: the agent calls the forecast tool on the sales service",
+   "ok": true,
+   "t": 6.2
+  },
+  {
+   "n": 3,
+   "text": "The tool call is visible in the reply: forecast(store, days) and where the numbers came from",
+   "ok": true,
+   "t": 15.1
+  },
+  {
+   "n": 4,
+   "text": "Which model won: answered from the saved metrics",
+   "ok": true,
+   "t": 20.8
+  },
+  {
+   "n": 5,
+   "text": "A plain reasoning question: no tool, just the model",
+   "ok": true,
+   "t": 34.7
+  },
+  {
+   "n": 6,
+   "text": "The badge says which provider answered; with no key it is the offline mode",
+   "ok": true,
+   "t": 48.5
+  },
+  {
+   "n": 7,
+   "text": "How it works",
+   "ok": true,
+   "t": 53.6
+  }
+ ],
+ "skipped": []
+}

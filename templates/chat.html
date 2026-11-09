@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Agent API</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="/static/ui.css">
+<style>
+  .chat{display:grid;gap:var(--gap);grid-template-columns:minmax(0,2fr) minmax(260px,1fr)}
+  @media (max-width:760px){.chat{grid-template-columns:1fr}}
+  .msgs{display:flex;flex-direction:column;gap:10px;min-height:200px;max-height:52vh;overflow:auto;padding:4px 2px}
+  .msg{max-width:85%;padding:10px 14px;border-radius:12px;line-height:1.45;white-space:pre-wrap;word-break:break-word}
+  .msg.user{align-self:flex-end;background:var(--accent-dim);border:1px solid rgba(79,209,197,.35)}
+  .msg.bot{align-self:flex-start;background:var(--bg-2);border:1px solid var(--line)}
+  .msg .meta{display:block;margin-top:6px}
+  .examples{display:flex;flex-direction:column;gap:8px}
+  .examples button{text-align:left;white-space:normal}
+  .ask{display:grid;gap:10px;grid-template-columns:1fr auto;align-items:start;margin-top:12px}
+  .ask textarea{min-height:64px}
+  .tool{font-family:var(--mono);font-size:.76rem;color:var(--fg-3);border-left:2px solid var(--warn);padding-left:8px;margin-top:6px}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header class="top">
+  <h1>Agent API</h1>
+  <span class="sub">Ask anything; the agent answers through one LLM door (Anthropic, OpenAI or Gemini from env, offline otherwise) and can call the sales-forecast service on :8104 as a tool.</span>
+  <span class="badge {% if online %}on{% endif %}" id="provider">{{ provider }} · {{ model }}</span>
+  <span class="badge">port {{ port }}</span>
+</header>
+
+<div class="chat">
+  <section class="card">
+    <h2>Chat</h2>
+    <div class="msgs" id="result">
+      <div class="empty" id="empty">Type a question or click an example. {% if not online %}No API key is set, so answers are the deterministic offline fallback; the tool loop still runs for real.{% endif %}</div>
+    </div>
+    <form class="ask" onsubmit="return send(event)">
+      <textarea id="input" placeholder="Forecast sales for Bob's Diner for the next 14 days" required></textarea>
+      <div class="row"><button id="run" type="submit">Ask</button><span id="spin" class="spinner" style="display:none"></span></div>
+    </form>
+  </section>
+  <aside class="card flat">
+    <h3>Try one</h3>
+    <div class="examples">
+      {% for ex in examples %}<button type="button" class="ghost" onclick="useExample(this.textContent)">{{ ex }}</button>{% endfor %}
+    </div>
+    <h3 style="margin-top:18px">How it works</h3>
+    <p class="muted" style="font-size:.9rem">1. The model (or a keyword parser when offline) returns JSON: which tool, which arguments.<br>2. <code>forecast(store, days)</code> calls <code>POST :8104/forecast</code>; if that service is down it answers from the trained model's <code>metrics.json</code>. <code>metrics()</code> reads the scores.<br>3. The model is asked again with the result and writes the reply.</p>
+    <p class="meta">POST /ask {"text": "..."} → {response, provider, model, tool_calls}</p>
+  </aside>
+</div>
+</div>
+<script>
+const $ = (s) => document.querySelector(s);
+function add(role, text, meta, tools) {
+  $('#empty')?.remove();
+  const d = document.createElement('div'); d.className = 'msg ' + role; d.textContent = text;
+  if (tools && tools.length) for (const t of tools) { const s = document.createElement('div'); s.className = 'tool'; s.textContent = `tool ${t.name}(${JSON.stringify(t.args)}) → ${t.result.source || t.result.error || 'ok'}`; d.appendChild(s); }
+  if (meta) { const m = document.createElement('span'); m.className = 'meta'; m.textContent = meta; d.appendChild(m); }
+  $('#result').appendChild(d); $('#result').scrollTop = 1e9;
+}
+function useExample(t) { $('#input').value = t; send(); }
+async function send(e) {
+  if (e) e.preventDefault();
+  const text = $('#input').value.trim(); if (!text) return false;
+  add('user', text); $('#input').value = ''; $('#run').disabled = true; $('#spin').style.display = '';
+  try {
+    const r = await fetch('/ask', {method: 'POST', headers: {'content-type': 'application/json'}, body: JSON.stringify({text})});
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.detail || r.statusText);
+    add('bot', d.response, `${d.provider} / ${d.model}`, d.tool_calls);
+  } catch (err) { add('bot', 'Request failed: ' + err.message + '. Check the server log or the API key.'); }
+  finally { $('#run').disabled = false; $('#spin').style.display = 'none'; $('#input').focus(); }
+  return false;
+}
+</script>
+</body>
+</html>
